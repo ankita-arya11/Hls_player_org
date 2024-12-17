@@ -1,128 +1,244 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Hls from "hls.js";
+import { FaHeart, FaRegHeart} from "react-icons/fa";
+import { RiPlayListAddLine, RiBarChartFill} from "react-icons/ri";
 
 const AudPlayer = () => {
   const audioRef = useRef(null);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [showMenu, setShowMenu] = useState(false);
+  const location = useLocation(); 
+  const { audioUrl } = location.state || {}; 
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [error, setError] = useState("");
+  const [likeCount, setLikeCount] = useState(0);
+  const [showDownload, setShowDownload] = useState(false);
 
-  const toggleMenu = () => setShowMenu(!showMenu);
+  useEffect(() => {
+    console.log(audioUrl, "audioUrl");
+    if (!audioUrl) return;
 
-  const validateUrl = (url) => {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  };
+    const audio = audioRef.current;
+    const hls = new Hls();
 
-  const handleAudioPlay = () => {
-    if (!validateUrl(audioUrl)) {
-      setError("Invalid URL. Please enter a valid audio URL.");
-      return;
-    }
-    setError("");
-  
-    // For MP3 files (not HLS stream)
-    if (audioUrl.endsWith(".mp3")) {
-      audioRef.current.src = audioUrl;
-      audioRef.current.play().catch(() => {
-        setError("Error playing audio. Please check the URL or network.");
-      });
-    } else if (Hls.isSupported() && audioUrl) {
-      const hls = new Hls();
+    if (Hls.isSupported() && audioUrl.endsWith(".m3u8")) {
+      console.log("inside");
       hls.loadSource(audioUrl);
-      hls.attachMedia(audioRef.current);
+      hls.attachMedia(audio);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        audioRef.current.play().catch(() => {
-          setError("Error playing audio. Please check the URL or network.");
-        });
+        setDuration(audio.duration);
       });
-      hls.on(Hls.Events.ERROR, () => {
-        setError("Error loading HLS stream.");
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        setError(`Error: ${data.details}`);
       });
     } else {
-      setError("HLS is not supported on this browser.");
+      audio.src = audioUrl;
+    }
+
+    const updateProgress = () => {
+      if (!isNaN(audio.duration) && audio.duration !== Infinity) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+        setDuration(audio.duration);
+      }
+    };
+
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("loadedmetadata", updateProgress);
+
+    return () => {
+      hls.destroy();
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("loadedmetadata", updateProgress);
+    };
+  }, [audioUrl]);
+
+  const handlePlay = () => {
+    
+    if (audioRef.current) {
+      console.log(audioRef.current, "hi");
+      audioRef.current
+        .play()
+        .then(() => {
+          console.log(audioRef.current, );
+          setIsPlaying(true)})
+        .catch(() => {
+          setError("Error playing audio.");
+        });
     }
   };
-  const frwd = () => {
-    if(audioRef.current){
-        audioRef.current.currentTime += 10;
+
+  const handlePause = () => {
+    audioRef.current.pause();
+    setIsPlaying(false);
+  };
+
+  const handleForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime += 10;
     }
   };
-  const bkwd = () => {
-    if(audioRef.current){
-        audioRef.current.currentTime -= 10;
+
+  const handleBackward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime -= 10;
     }
-  }
-  
+  };
+
+  const handleProgress = (e) => {
+    const newTime = (e.target.value / 100) * duration;
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+      setProgress(e.target.value);
+    }
+  };
+
+  const handleLike = () => {
+    setLikeCount(likeCount === 0 ? likeCount + 1 : likeCount - 1);
+  };
+
+  const toggleDownload = () => {
+    setShowDownload(!showDownload);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div className="flex items-center mb-2">
-        <img
-          src="https://media.istockphoto.com/id/1443887485/photo/young-adult-black-male-music-singer-passionately-singing-in-a-beautiful-illuminated-studio.jpg?s=612x612&w=0&k=20&c=wQp7zLdNQ72w10SaxpuvWvH8qg5rPb3r6qGeouwLD2E="
-          alt="Audio Icon"
-          className="w-64 h-64 rounded-full mr-3"
-        />
-        
-      </div>
-      <input
-          type="text"
-          placeholder="Enter audio URL"
-          value={audioUrl}
-          onChange={(e) => setAudioUrl(e.target.value)}
-          className="p-2 border rounded w-full max-w-lg"
-        />
-      {error && <p className="text-red-500 mb-2">{error}</p>}
-      <br/><br/>
+    <div className="flex flex-col items-center justify-between p-4 h-screen relative">
+      <div className="relative w-full h-96 flex flex-col items-center p-4 bg-blue-100 shadow-md">
+  <div className="relative">
+    <div
+      className="absolute bg-red-500 w-56 h-56 rounded-full"
+      style={{ top: "-13px", left: "-10px" }}
+    ></div>
+    <div
+      className="absolute bg-green-500 w-56 h-56 rounded-full"
+      style={{ top: "10px", right: "-18px" }}
+    ></div>
+    <div
+      className="absolute bg-blue-500 w-56 h-56 rounded-full"
+      style={{ bottom: "-5px", left: "-5px" }}
+    ></div>
+    <img
+      src="https://t.ly/pObfv"
+      alt="Music Studio"
+      className="w-56 max-w-lg mb-4 rounded-full relative"
+    />
+    <button
+      onClick={isPlaying ? handlePause : handlePlay}
+      className="absolute bottom-3 right-3 bg-blue-500 text-white p-2 rounded-full text-2xl"
+    >
+      {isPlaying ? (
+        <i className="fa-solid fa-pause"></i>
+      ) : (
+        <i className="fa-solid fa-play"></i>
+      )}
+    </button>
+  </div>
+  <br />
+
+  {/* div below image */}
+  <div className="border 2-px h-32 w-1/4 mt-50px rounded-lg flex items-center justify-between px-4">
+    <div className="flex items-center">
+      <RiBarChartFill className="mr-2" />
+      <p style={{ color: "orange" }}>Walking the Wire</p>
+    </div>
+    <div className="flex items-center space-x-4">
       <button
-        onClick={handleAudioPlay}
-        className="bg-blue-500 text-white px-4 py-2 rounded mb-2"
+        onClick={handleLike}
+        className="bg-green-500 text-white px-4 py-1 rounded-full text-lg"
       >
-        Play Audio
-      </button>   <br/> <br/>
-      <div className="flex space-x-4 mb-2">
-        <button
-          onClick={bkwd}
-          className="bg-gray-500 text-white px-4 py-2 rounded"
-        >
-          <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-player-track-prev"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M20.341 4.247l-8 7a1 1 0 0 0 0 1.506l8 7c.647 .565 1.659 .106 1.659 -.753v-14c0 -.86 -1.012 -1.318 -1.659 -.753z" /><path d="M9.341 4.247l-8 7a1 1 0 0 0 0 1.506l8 7c.647 .565 1.659 .106 1.659 -.753v-14c0 -.86 -1.012 -1.318 -1.659 -.753z" /></svg>
-        </button>
-        <button
-          onClick={frwd}
-          className="bg-gray-500 text-white px-4 py-2 rounded"
-        >
-          <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-player-track-next"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /></svg>
-        </button>
-      </div>
-      <audio
-        ref={audioRef}
-        controls
-        download
-        className="w-full max-w-lg"
-        onError={() => setError("Error playing audio. Please check the URL or network.")}
-      ></audio>
-      <div className="relative">
-        <button onClick={toggleMenu} className="text-gray-600 text-2xl">
-          ⋮
-        </button>
-        {showMenu && (
-          <div className="absolute right-0 bg-white border rounded shadow-md p-2">
-            {audioUrl ? (
-              <a
-                href={audioUrl}
-                download
-                className="block text-blue-500 hover:underline"
+        {likeCount === 0 ? <FaRegHeart /> : <FaHeart />} ({likeCount})
+      </button>
+      <RiPlayListAddLine className="text-2xl" />
+    </div>
+  </div>
+</div>
+
+<div className="w-72 h-64 my-[200px]">
+  {<p>Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+    Voluptates reprehenderit quis quam asperiores unde aspernatur 
+    repellat consequuntur amet atque architecto excepturi id 
+    magni modi cum cupiditate, perspiciatis libero. Amet laborum 
+    at modi quaerat quam temporibus ipsam quas fugit sapiente enim!
+    Lorem ipsum dolor sit amet consectetur</p>}
+</div> 
+
+
+      <audio ref={audioRef} src={audioUrl} className="w-full max-w-lg" />
+      {error && <p className="text-red-500 mb-2">{error}</p>}
+
+      <div className="absolute bottom-0 left-0 w-full flex flex-col items-center p-4 bg-white shadow-md">
+        <div className="w-[100%] bg-gray-600 border-2 border-gray-200 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={progress}
+              onChange={handleProgress}
+              className="w-11/12 h-2 bg-gray-150 rounded-lg"
+            />
+            <div className="relative">
+              <button
+                onClick={toggleDownload}
+                className="text-gray-300 text-xl focus:outline-none"
               >
-                Download Audio
-              </a>
-            ) : (
-              <span className="block text-gray-500">No audio URL</span>
-            )}
+                <i className="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+              {showDownload && (
+                <div className="absolute right-0 bottom-[40px] bg-white shadow-lg rounded-md p-2">
+                  <a
+                    href={audioUrl}
+                    download  
+                    className="text-blue-400 hover:underline"
+                  >
+                    Download
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          <div className="flex items-center justify-center space-x-4 mt-4">
+  <button
+    onClick={handleBackward}
+    className="bg-gray-500 text-white px-4 py-2 rounded text-lg"
+  >
+    <i className="fa-solid fa-backward"></i>
+  </button>
+  <button
+    onClick={isPlaying ? handlePause : handlePlay}
+    className="bg-blue-500 text-white px-4 py-2 rounded text-lg"
+  >
+    {isPlaying ? (
+      <i className="fa-solid fa-pause"></i>
+    ) : (
+      <i className="fa-solid fa-play"></i>
+    )}
+  </button>
+  <button
+    onClick={handleForward}
+    className="bg-gray-500 text-white px-4 py-2 rounded text-lg"
+  >
+    <i className="fa-solid fa-forward"></i>
+  </button>
+
+  <input
+    type="range"
+    min="0"
+    max="1"
+    step="0.1"
+    onChange={(e) => {
+      if (audioRef.current) {
+        audioRef.current.volume = e.target.value;
+      }
+    }}
+    className="w-20 h-2 bg-gray-200 rounded-lg"
+    title="Volume Control"
+  />
+</div>
+
+        </div>
       </div>
     </div>
   );
