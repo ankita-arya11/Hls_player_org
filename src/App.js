@@ -1,7 +1,7 @@
-import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import AudInput from "./components/AudInput"; 
-import AudPlayer from "./components/AudPlayer"; 
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import AudInput from './components/AudInput';
+import AudPlayer from './components/AudPlayer';
 
 const App = () => {
   return (
@@ -15,5 +15,3 @@ const App = () => {
 };
 
 export default App;
-
-

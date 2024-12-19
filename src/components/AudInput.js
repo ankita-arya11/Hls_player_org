@@ -1,13 +1,15 @@
-import React, { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const AudInput = () => {
   const fileInputRef = useRef(null);
+  const audioRef = useRef();
 
-  const [audioUrl, setAudioUrl] = useState("");
+  const [audioUrl, setAudioUrl] = useState('');
   const [file, setFile] = useState(null);
-  const [error, setError] = useState("");
-  const navigate = useNavigate(); 
+  const [error, setError] = useState('');
+  const [isPlaying, setIsPlaying] = useState(true);
+  const navigate = useNavigate();
 
   const validateUrl = (url) => {
     try {
@@ -18,15 +20,21 @@ const AudInput = () => {
     }
   };
 
+  const handleStopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
   const handleSubmit = () => {
     if (file) {
       const fileUrl = URL.createObjectURL(file);
       // console.log(fileUrl);
-      navigate("/player", { state: { audioUrl: fileUrl } });
+      navigate('/player', { state: { audioUrl: fileUrl } });
     } else if (validateUrl(audioUrl)) {
-      navigate("/player", { state: { audioUrl: audioUrl } });
+      navigate('/player', { state: { audioUrl: audioUrl } });
     } else {
-      setError("Please enter a valid URL or upload an audio file.");
+      setError('Please enter a valid URL or upload an audio file.');
       return;
     }
   };
@@ -48,38 +56,37 @@ const AudInput = () => {
           className="p-2 border rounded flex-grow"
         />
         <button
-          onClick={() => setAudioUrl("")}
+          onClick={() => {
+            setAudioUrl('');
+            handleStopAudio(); // Stop the audio when the URL is cleared
+          }}
           className="ml-2 text-gray-600"
           disabled={!audioUrl}
-        >
-          <i className="fa-solid fa-minus"></i>
-        </button>
+        />
       </div>
 
       <div className="flex items-center w-full max-w-lg mb-4">
         <input
-         ref={fileInputRef}
+          ref={fileInputRef}
           type="file"
           // accept="audio/*"
           onChange={(e) => {
             setFile(e.target.files[0]);
-            setAudioUrl(""); 
+            setAudioUrl('');
           }}
-          disabled={audioUrl !== ""}
+          disabled={audioUrl !== ''}
           className="p-2 border rounded flex-grow"
         />
         <button
-          onClick={()=>{
-            console.log("j");
+          onClick={() => {
             setFile(null);
-            console.log(fileInputRef);
-            fileInputRef.current.value = "";
+            fileInputRef.current.value = '';
+            handleStopAudio();
           }}
           className="ml-2 text-gray-600"
           // disabled={!file}
         >
-                 <i className="fa-solid fa-minus"></i>
-
+          <i className="fa-solid fa-minus"></i>
         </button>
       </div>
 
